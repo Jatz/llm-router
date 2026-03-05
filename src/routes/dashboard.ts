@@ -665,12 +665,13 @@ const dashboardHtml = `<!DOCTYPE html>
 
         const tbody = document.getElementById('keys-body');
 
-        if (!data.keys || data.keys.length === 0) {
+        const keys = data.data || [];
+        if (keys.length === 0) {
           tbody.innerHTML = '<tr><td colspan="5" class="keys-empty">No API keys yet. Create one below.</td></tr>';
           return;
         }
 
-        tbody.innerHTML = data.keys.map(k => {
+        tbody.innerHTML = keys.map(k => {
           const revoked = k.revoked === 1;
           const lastUsed = k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : 'Never';
           const statusBadge = revoked
