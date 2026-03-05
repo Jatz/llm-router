@@ -1,8 +1,12 @@
 import { Router } from "express";
 import type { KeyStore } from "../db/keys.js";
+import type { UsageLogger } from "../db/usage.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 
-export function adminRouter(keyStore: KeyStore): Router {
+export function adminRouter(
+  keyStore: KeyStore,
+  usageLogger?: UsageLogger,
+): Router {
   const router = Router();
 
   // Only admin can access these routes
@@ -51,6 +55,35 @@ export function adminRouter(keyStore: KeyStore): Router {
       return;
     }
     res.json({ message: "Key revoked" });
+  });
+
+  router.get("/usage", (req, res) => {
+    if (!usageLogger) {
+      res.json({ data: [] });
+      return;
+    }
+
+    const keyIdParam = req.query.key_id;
+    const filter = keyIdParam
+      ? { keyId: parseInt(keyIdParam as string, 10) }
+      : undefined;
+
+    const stats = usageLogger.getStats(filter);
+    res.json({ data: stats });
+  });
+
+  router.delete("/usage", (req, res) => {
+    if (!usageLogger) {
+      res.json({ message: "No usage data", deleted: 0 });
+      return;
+    }
+
+    const olderThanDays = parseInt(
+      (req.query.older_than_days as string) ?? "30",
+      10,
+    );
+    const deleted = usageLogger.purge(olderThanDays);
+    res.json({ message: `Purged ${deleted} records`, deleted });
   });
 
   return router;

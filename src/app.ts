@@ -5,8 +5,10 @@ import { ProviderRegistry } from "./providers/registry.js";
 import { OllamaAdapter } from "./providers/ollama.js";
 import { ClaudeAdapter } from "./providers/claude.js";
 import { OpenRouterAdapter } from "./providers/openrouter.js";
+import { MiniMaxAdapter } from "./providers/minimax.js";
 import { createDatabase } from "./db/index.js";
 import { KeyStore } from "./db/keys.js";
+import { UsageLogger } from "./db/usage.js";
 import { healthRouter } from "./routes/health.js";
 import { modelsRouter } from "./routes/models.js";
 import { chatRouter } from "./routes/chat.js";
@@ -14,6 +16,8 @@ import { adminRouter } from "./routes/admin.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./openapi.js";
 
 export function createApp(config: Config) {
   const app = express();
@@ -22,6 +26,7 @@ export function createApp(config: Config) {
   // Database
   const db = createDatabase(config.dbPath);
   const keyStore = new KeyStore(db);
+  const usageLogger = new UsageLogger(db);
 
   // Provider registry
   const registry = new ProviderRegistry();
@@ -32,6 +37,9 @@ export function createApp(config: Config) {
       "openrouter",
       new OpenRouterAdapter(config.openrouterApiKey),
     );
+  }
+  if (config.minimaxApiKey) {
+    registry.register("minimax", new MiniMaxAdapter(config.minimaxApiKey));
   }
 
   // Global middleware
@@ -53,16 +61,17 @@ export function createApp(config: Config) {
   });
 
   // Public routes
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use("/health", healthRouter);
 
   // Authenticated routes
   const auth = authMiddleware(keyStore, config.adminApiKey);
   app.use("/v1/models", auth, modelsRouter(registry));
-  app.use("/v1/chat/completions", auth, chatRouter(registry));
-  app.use("/v1/admin", auth, adminRouter(keyStore));
+  app.use("/v1/chat/completions", auth, chatRouter(registry, usageLogger));
+  app.use("/v1/admin", auth, adminRouter(keyStore, usageLogger));
 
   // Error handler (must be last)
   app.use(errorHandler);
 
-  return { app, registry, keyStore };
+  return { app, registry, keyStore, usageLogger };
 }

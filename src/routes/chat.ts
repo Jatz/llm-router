@@ -1,12 +1,17 @@
 import { Router } from "express";
 import type { ProviderRegistry } from "../providers/registry.js";
+import type { UsageLogger } from "../db/usage.js";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { chatRequestSchema } from "../utils/validation.js";
 import { sendSSE } from "../utils/streaming.js";
 import pino from "pino";
 
 const logger = pino({ name: "chat-route" });
 
-export function chatRouter(registry: ProviderRegistry): Router {
+export function chatRouter(
+  registry: ProviderRegistry,
+  usageLogger?: UsageLogger,
+): Router {
   const router = Router();
 
   router.post("/", async (req, res, next) => {
@@ -36,6 +41,10 @@ export function chatRouter(registry: ProviderRegistry): Router {
         return;
       }
 
+      const authReq = req as AuthenticatedRequest;
+      const keyId = authReq.apiKey?.id;
+      const providerName = resolved.provider.name;
+
       const { messages, ...restParams } = rest;
       const chatReq = {
         ...restParams,
@@ -60,13 +69,25 @@ export function chatRouter(registry: ProviderRegistry): Router {
           res.write("data: [DONE]\n\n");
         } catch (err) {
           logger.error({ err, model }, "streaming error");
-          // If headers already sent, we can only abort
           if (!res.writableEnded) {
             res.write(
               `data: ${JSON.stringify({ error: { message: "Stream interrupted" } })}\n\n`,
             );
           }
         } finally {
+          const latencyMs = Date.now() - start;
+          if (usageLogger && keyId) {
+            try {
+              usageLogger.log({
+                keyId,
+                model,
+                provider: providerName,
+                latencyMs,
+              });
+            } catch (e) {
+              logger.warn({ err: e }, "failed to log streaming usage");
+            }
+          }
           res.end();
         }
       } else {
@@ -76,6 +97,23 @@ export function chatRouter(registry: ProviderRegistry): Router {
           { model, latencyMs, tokens: result.usage?.total_tokens },
           "chat completion",
         );
+
+        if (usageLogger && keyId) {
+          try {
+            usageLogger.log({
+              keyId,
+              model,
+              provider: providerName,
+              promptTokens: result.usage?.prompt_tokens,
+              completionTokens: result.usage?.completion_tokens,
+              totalTokens: result.usage?.total_tokens,
+              latencyMs,
+            });
+          } catch (e) {
+            logger.warn({ err: e }, "failed to log usage");
+          }
+        }
+
         res.json(result);
       }
     } catch (err) {
