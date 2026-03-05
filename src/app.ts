@@ -15,6 +15,7 @@ import { modelsRouter } from "./routes/models.js";
 import { chatRouter } from "./routes/chat.js";
 import { adminRouter } from "./routes/admin.js";
 import { settingsRouter } from "./routes/settings.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
@@ -66,6 +67,7 @@ export function createApp(config: Config) {
   // Public routes
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use("/health", healthRouter(db));
+  app.use("/settings", dashboardRouter());
 
   // Authenticated routes
   const auth = authMiddleware(keyStore, config.adminApiKey);
