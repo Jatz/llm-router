@@ -166,19 +166,14 @@ describe("MiniMaxAdapter", () => {
   });
 
   describe("healthCheck", () => {
-    it("returns true on successful ping", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: "test" }), { status: 200 }),
-      );
-
+    it("returns true when API key is configured", async () => {
       const healthy = await adapter.healthCheck();
       expect(healthy).toBe(true);
     });
 
-    it("returns false on failure", async () => {
-      vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("timeout"));
-
-      const healthy = await adapter.healthCheck();
+    it("returns false when API key is empty", async () => {
+      const emptyAdapter = new MiniMaxAdapter("");
+      const healthy = await emptyAdapter.healthCheck();
       expect(healthy).toBe(false);
     });
   });

@@ -7,7 +7,7 @@ const configSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
   adminApiKey: z.string().min(1, "ADMIN_API_KEY is required"),
-  ollamaUrl: z.string().url().default("http://host.docker.internal:11434"),
+  ollamaUrl: z.string().url().default("http://ollama:11434"),
   claudeProxyUrl: z
     .string()
     .url()

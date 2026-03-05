@@ -13,9 +13,11 @@ import { healthRouter } from "./routes/health.js";
 import { modelsRouter } from "./routes/models.js";
 import { chatRouter } from "./routes/chat.js";
 import { adminRouter } from "./routes/admin.js";
+import { settingsRouter } from "./routes/settings.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
+import { createRateLimiter } from "./middleware/rate-limit.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./openapi.js";
 
@@ -66,9 +68,16 @@ export function createApp(config: Config) {
 
   // Authenticated routes
   const auth = authMiddleware(keyStore, config.adminApiKey);
-  app.use("/v1/models", auth, modelsRouter(registry));
-  app.use("/v1/chat/completions", auth, chatRouter(registry, usageLogger));
+  const rateLimiter = createRateLimiter();
+  app.use("/v1/models", auth, rateLimiter, modelsRouter(registry));
+  app.use(
+    "/v1/chat/completions",
+    auth,
+    rateLimiter,
+    chatRouter(registry, usageLogger),
+  );
   app.use("/v1/admin", auth, adminRouter(keyStore, usageLogger));
+  app.use("/v1/settings", auth, settingsRouter(config, registry));
 
   // Error handler (must be last)
   app.use(errorHandler);

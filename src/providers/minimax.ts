@@ -95,25 +95,9 @@ export class MiniMaxAdapter implements ProviderAdapter {
   }
 
   async healthCheck(): Promise<boolean> {
-    try {
-      // MiniMax doesn't have a /models endpoint we can easily probe,
-      // so we just verify connectivity to the API base
-      const res = await fetch(`${BASE_URL}/text/chatcompletion_v2`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "MiniMax-M1",
-          messages: [{ role: "user", content: "ping" }],
-          max_tokens: 1,
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
+    // Static model list — if API key is configured, consider it healthy.
+    // Avoids sending a real chat completion which costs tokens on every
+    // /v1/models call.
+    return !!this.apiKey;
   }
 }
