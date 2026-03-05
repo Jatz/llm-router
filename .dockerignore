@@ -1,0 +1,9 @@
+node_modules
+dist
+*.db
+*.db-journal
+.env
+.git
+tests
+docs
+vitest.config.ts
