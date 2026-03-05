@@ -10,7 +10,7 @@ const logger = pino({ level: config.logLevel });
 // Ensure data directory exists for SQLite
 mkdirSync(dirname(config.dbPath), { recursive: true });
 
-const { app } = createApp(config);
+const { app, db } = createApp(config);
 
 const server = app.listen(config.port, config.host, () => {
   logger.info(`LLM Gateway listening on http://${config.host}:${config.port}`);
@@ -20,15 +20,30 @@ const server = app.listen(config.port, config.host, () => {
 function shutdown(signal: string) {
   logger.info({ signal }, "shutting down gracefully");
   server.close(() => {
+    try {
+      db.close();
+      logger.info("database closed");
+    } catch (err) {
+      logger.warn({ err }, "error closing database");
+    }
     logger.info("server closed");
     process.exit(0);
   });
   // Force exit after 10s if connections don't drain
   setTimeout(() => {
     logger.warn("forcing shutdown after timeout");
+    try {
+      db.close();
+    } catch {
+      // best-effort
+    }
     process.exit(1);
   }, 10_000).unref();
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ reason }, "unhandled promise rejection");
+});

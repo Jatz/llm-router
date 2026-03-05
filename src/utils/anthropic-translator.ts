@@ -6,7 +6,13 @@ import type {
 
 interface AnthropicMessage {
   role: "user" | "assistant";
-  content: string | Array<{ type: string; text?: string }>;
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        source?: { type: string; url: string };
+      }>;
 }
 
 interface AnthropicRequest {
@@ -33,6 +39,13 @@ interface AnthropicResponse {
 export type { AnthropicRequest, AnthropicResponse };
 
 export function openaiToAnthropic(req: OpenAIChatRequest): AnthropicRequest {
+  // Tool use is not yet supported through the Claude proxy adapter
+  if (req.tools && req.tools.length > 0) {
+    throw new Error(
+      "Tool use is not yet supported for the Claude provider. Remove 'tools' from your request or use a different provider.",
+    );
+  }
+
   let system: string | undefined;
   const messages: AnthropicMessage[] = [];
 
@@ -45,15 +58,34 @@ export function openaiToAnthropic(req: OpenAIChatRequest): AnthropicRequest {
               .map((c) => c.text ?? "")
               .join("");
       system = system ? `${system}\n${text}` : text;
+    } else if (msg.role === "tool") {
+      // Tool results not supported — skip with warning
+      continue;
     } else if (msg.role === "user" || msg.role === "assistant") {
-      messages.push({
-        role: msg.role,
-        content: msg.content as string,
-      });
+      // Handle multipart content (e.g. vision/image requests)
+      if (typeof msg.content === "string") {
+        messages.push({ role: msg.role, content: msg.content });
+      } else if (Array.isArray(msg.content)) {
+        const anthropicContent = msg.content.map((part) => {
+          if (part.type === "text") {
+            return { type: "text" as const, text: part.text ?? "" };
+          }
+          if (part.type === "image_url" && part.image_url?.url) {
+            return {
+              type: "image" as const,
+              source: {
+                type: "url" as const,
+                url: part.image_url.url,
+              },
+            };
+          }
+          return { type: "text" as const, text: "" };
+        });
+        messages.push({ role: msg.role, content: anthropicContent });
+      }
     }
   }
 
-  // Strip provider prefix from model ID (e.g. "opus" stays "opus")
   const model = req.model;
 
   const result: AnthropicRequest = { model, messages };
@@ -95,12 +127,15 @@ export function anthropicToOpenai(
           STOP_REASON_MAP[anthropicRes.stop_reason ?? ""] ?? "stop",
       },
     ],
-    usage: {
-      prompt_tokens: anthropicRes.usage.input_tokens,
-      completion_tokens: anthropicRes.usage.output_tokens,
-      total_tokens:
-        anthropicRes.usage.input_tokens + anthropicRes.usage.output_tokens,
-    },
+    usage: anthropicRes.usage
+      ? {
+          prompt_tokens: anthropicRes.usage.input_tokens,
+          completion_tokens: anthropicRes.usage.output_tokens,
+          total_tokens:
+            anthropicRes.usage.input_tokens +
+            anthropicRes.usage.output_tokens,
+        }
+      : undefined,
   };
 }
 

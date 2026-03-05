@@ -26,10 +26,27 @@ export function adminRouter(
 
   router.post("/keys", (req, res) => {
     const { name, rate_limit } = req.body;
-    if (!name) {
-      res
-        .status(400)
-        .json({ error: { message: "name is required" } });
+    if (!name || typeof name !== "string" || name.length > 255) {
+      res.status(400).json({
+        error: {
+          message: "name is required and must be a string (max 255 chars)",
+        },
+      });
+      return;
+    }
+    if (
+      rate_limit !== undefined &&
+      (typeof rate_limit !== "number" ||
+        !Number.isInteger(rate_limit) ||
+        rate_limit <= 0 ||
+        rate_limit > 100000)
+    ) {
+      res.status(400).json({
+        error: {
+          message:
+            "rate_limit must be a positive integer up to 100000 (requests/min)",
+        },
+      });
       return;
     }
     const { key, record } = keyStore.create(name, rate_limit);

@@ -4,7 +4,7 @@ const configSchema = z.object({
   port: z.coerce.number().default(3000),
   host: z.string().default("0.0.0.0"),
   logLevel: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace"])
+    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
   adminApiKey: z.string().min(1, "ADMIN_API_KEY is required"),
   ollamaUrl: z.string().url().default("http://ollama:11434"),

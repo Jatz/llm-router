@@ -31,10 +31,12 @@ export class OllamaAdapter implements ProviderAdapter {
   }
 
   async chatCompletion(req: OpenAIChatRequest): Promise<OpenAIChatResponse> {
+    const { signal, ...body } = req;
     const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...req, stream: false }),
+      body: JSON.stringify({ ...body, stream: false }),
+      signal: signal ?? AbortSignal.timeout(300_000),
     });
     if (!res.ok) {
       const body = await res.text();
@@ -48,10 +50,12 @@ export class OllamaAdapter implements ProviderAdapter {
   async *chatCompletionStream(
     req: OpenAIChatRequest,
   ): AsyncIterable<OpenAIChatChunk> {
+    const { signal, ...body } = req;
     const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...req, stream: true }),
+      body: JSON.stringify({ ...body, stream: true }),
+      signal,
     });
     if (!res.ok) {
       const body = await res.text();

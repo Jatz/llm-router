@@ -40,6 +40,7 @@ export class ClaudeAdapter implements ProviderAdapter {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(anthropicReq),
+      signal: req.signal ?? AbortSignal.timeout(300_000),
     });
 
     if (!res.ok) {
@@ -62,6 +63,7 @@ export class ClaudeAdapter implements ProviderAdapter {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(anthropicReq),
+      signal: req.signal,
     });
 
     if (!res.ok) {

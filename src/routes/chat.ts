@@ -59,20 +59,31 @@ export function chatRouter(
         res.setHeader("Connection", "keep-alive");
         res.flushHeaders();
 
+        const abortController = new AbortController();
+        req.on("close", () => abortController.abort());
+
         try {
           for await (const chunk of resolved.provider.chatCompletionStream({
             ...chatReq,
             stream: true,
+            signal: abortController.signal,
           })) {
+            if (res.writableEnded) break;
             sendSSE(res, chunk);
           }
-          res.write("data: [DONE]\n\n");
-        } catch (err) {
-          logger.error({ err, model }, "streaming error");
           if (!res.writableEnded) {
-            res.write(
-              `data: ${JSON.stringify({ error: { message: "Stream interrupted" } })}\n\n`,
-            );
+            res.write("data: [DONE]\n\n");
+          }
+        } catch (err) {
+          if ((err as Error).name === "AbortError") {
+            logger.info({ model }, "stream aborted by client disconnect");
+          } else {
+            logger.error({ err, model }, "streaming error");
+            if (!res.writableEnded) {
+              res.write(
+                `data: ${JSON.stringify({ error: { message: "Stream interrupted" } })}\n\n`,
+              );
+            }
           }
         } finally {
           const latencyMs = Date.now() - start;
@@ -88,7 +99,7 @@ export function chatRouter(
               logger.warn({ err: e }, "failed to log streaming usage");
             }
           }
-          res.end();
+          if (!res.writableEnded) res.end();
         }
       } else {
         const result = await resolved.provider.chatCompletion(chatReq);

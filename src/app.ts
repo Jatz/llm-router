@@ -1,5 +1,6 @@
 import express from "express";
 import pino from "pino";
+import type Database from "better-sqlite3";
 import type { Config } from "./config.js";
 import { ProviderRegistry } from "./providers/registry.js";
 import { OllamaAdapter } from "./providers/ollama.js";
@@ -64,7 +65,7 @@ export function createApp(config: Config) {
 
   // Public routes
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  app.use("/health", healthRouter);
+  app.use("/health", healthRouter(db));
 
   // Authenticated routes
   const auth = authMiddleware(keyStore, config.adminApiKey);
@@ -82,5 +83,5 @@ export function createApp(config: Config) {
   // Error handler (must be last)
   app.use(errorHandler);
 
-  return { app, registry, keyStore, usageLogger };
+  return { app, db: db as Database.Database, registry, keyStore, usageLogger };
 }

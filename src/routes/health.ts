@@ -1,7 +1,17 @@
 import { Router } from "express";
+import type Database from "better-sqlite3";
 
-export const healthRouter = Router();
+export function healthRouter(db: Database.Database): Router {
+  const router = Router();
 
-healthRouter.get("/", (_req, res) => {
-  res.json({ status: "ok" });
-});
+  router.get("/", (_req, res) => {
+    try {
+      db.prepare("SELECT 1").get();
+      res.json({ status: "ok" });
+    } catch {
+      res.status(503).json({ status: "degraded", reason: "database unavailable" });
+    }
+  });
+
+  return router;
+}

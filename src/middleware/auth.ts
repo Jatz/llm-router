@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual, createHash } from "node:crypto";
 import type { KeyStore } from "../db/keys.js";
 
 export interface AuthenticatedRequest extends Request {
@@ -8,8 +8,9 @@ export interface AuthenticatedRequest extends Request {
 }
 
 function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
 }
 
 export function authMiddleware(keyStore: KeyStore, adminApiKey: string) {

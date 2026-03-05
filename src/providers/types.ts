@@ -35,6 +35,8 @@ export interface OpenAIChatRequest {
     };
   }>;
   stop?: string | string[];
+  /** AbortSignal for cancelling upstream requests on client disconnect */
+  signal?: AbortSignal;
 }
 
 export interface OpenAIChatResponse {
