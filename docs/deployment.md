@@ -82,6 +82,39 @@ The gateway container connects to:
 - **ai** network: So it can reach the Ollama Docker service (if used)
 - **host.docker.internal**: To reach host-level services (Ollama, Claude proxy)
 
+## Cloudflare Access Configuration
+
+The gateway uses a split authentication model:
+
+- **Browser access** (`/settings`, `/docs`) — protected by Cloudflare Access (SSO/OAuth)
+- **API access** (`/v1/*`) — protected by API key in `Authorization: Bearer` header
+
+### Setting up the bypass for API endpoints
+
+In Cloudflare Zero Trust dashboard:
+
+1. Go to **Access → Applications** → your `*.jaymathew.com` application
+2. Add a new **Bypass policy**:
+   - **Policy name:** `LLM Gateway API`
+   - **Selector:** `Path` → starts with `/v1/`
+   - **Action:** `Bypass`
+3. Save
+
+This allows programmatic clients (Cursor, scripts, agents) to reach `/v1/*` with just an API key, without needing to go through the Cloudflare OAuth flow. The gateway's own auth middleware validates the API key.
+
+### Security model
+
+```
+Browser → Cloudflare SSO → /settings (dashboard UI)
+                         → /api/dashboard/* (dashboard API)
+                         → /docs (Swagger UI)
+
+Cursor  → Bypass policy → /v1/* → API key auth → Gateway
+Scripts → Bypass policy → /v1/* → API key auth → Gateway
+```
+
+The **kill switch** in the settings dashboard instantly disables all `/v1/*` endpoints (returns 503), which is useful if an API key is compromised. You can toggle it from the dashboard at any time.
+
 ## Creating API Keys
 
 After deployment, create your first API key:

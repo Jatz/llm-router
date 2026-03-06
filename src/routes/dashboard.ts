@@ -95,35 +95,6 @@ const dashboardHtml = `<!DOCTYPE html>
       padding: 24px;
     }
 
-    /* Login screen */
-    .login-screen {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 80vh;
-    }
-
-    .login-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 32px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: var(--shadow-lg);
-    }
-
-    .login-card h2 {
-      font-size: 20px;
-      margin-bottom: 4px;
-    }
-
-    .login-card p {
-      color: var(--text-secondary);
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
-
     /* Form elements */
     label {
       display: block;
@@ -194,12 +165,6 @@ const dashboardHtml = `<!DOCTYPE html>
       font-size: 12px;
     }
 
-    .btn-block {
-      width: 100%;
-      justify-content: center;
-      padding: 10px 16px;
-    }
-
     /* Cards */
     .section {
       margin-bottom: 24px;
@@ -241,6 +206,82 @@ const dashboardHtml = `<!DOCTYPE html>
       font-family: var(--mono);
       font-size: 13px;
       color: var(--text-secondary);
+    }
+
+    /* Kill switch */
+    .kill-switch-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .kill-switch-card.disabled {
+      border-color: var(--danger);
+      background: var(--danger-bg);
+    }
+
+    .kill-switch-info h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .kill-switch-info p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .kill-switch-card.disabled .kill-switch-info p {
+      color: var(--danger);
+    }
+
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #ccc;
+      border-radius: 26px;
+      transition: background 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background: var(--success);
+    }
+
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(22px);
     }
 
     /* Provider cards */
@@ -341,9 +382,7 @@ const dashboardHtml = `<!DOCTYPE html>
       color: var(--text-secondary);
     }
 
-    .key-name {
-      font-weight: 500;
-    }
+    .key-name { font-weight: 500; }
 
     .key-date {
       font-size: 13px;
@@ -390,9 +429,7 @@ const dashboardHtml = `<!DOCTYPE html>
       opacity: 1;
     }
 
-    .toast.error {
-      background: var(--danger);
-    }
+    .toast.error { background: var(--danger); }
 
     /* New key reveal */
     .key-reveal {
@@ -457,87 +494,85 @@ const dashboardHtml = `<!DOCTYPE html>
   </style>
 </head>
 <body>
-  <!-- Login -->
-  <div id="login" class="login-screen">
-    <div class="login-card">
-      <h2>LLM Gateway</h2>
-      <p>Enter your admin API key to access settings.</p>
-      <div style="margin-bottom: 16px">
-        <label for="admin-key">Admin API Key</label>
-        <input type="password" id="admin-key" placeholder="Enter admin key..." autofocus>
-      </div>
-      <button class="btn btn-primary btn-block" onclick="login()">Sign In</button>
-      <p id="login-error" style="color: var(--danger); font-size: 13px; margin-top: 12px; display: none;"></p>
+  <div class="header">
+    <h1>
+      LLM Gateway
+      <span class="version" id="version">v0.1.0</span>
+    </h1>
+    <div class="header-actions">
+      <button class="btn btn-sm" onclick="refresh()">Refresh</button>
+      <a href="/docs" class="btn btn-sm">API Docs</a>
     </div>
   </div>
 
-  <!-- Dashboard -->
-  <div id="dashboard" style="display: none">
-    <div class="header">
-      <h1>
-        LLM Gateway
-        <span class="version" id="version">v0.1.0</span>
-      </h1>
-      <div class="header-actions">
-        <button class="btn btn-sm" onclick="refresh()">Refresh</button>
-        <button class="btn btn-sm btn-danger" onclick="logout()">Sign Out</button>
+  <div class="container">
+    <!-- Kill Switch -->
+    <div class="section">
+      <div class="section-title">API Access</div>
+      <div class="kill-switch-card" id="kill-switch-card">
+        <div class="kill-switch-info">
+          <h3 id="kill-switch-title">API is enabled</h3>
+          <p id="kill-switch-desc">All /v1/* endpoints are accepting requests with valid API keys.</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="kill-switch" checked onchange="toggleKillSwitch(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
     </div>
 
-    <div class="container">
-      <!-- Gateway Info -->
-      <div class="section">
-        <div class="section-title">Gateway</div>
-        <div class="card">
-          <div class="card-row">
-            <span class="card-row-label">Admin Key</span>
-            <span class="card-row-value" id="admin-key-masked">—</span>
-          </div>
-          <div class="card-row">
-            <span class="card-row-label">Port</span>
-            <span class="card-row-value" id="gateway-port">—</span>
-          </div>
-          <div class="card-row">
-            <span class="card-row-label">Log Level</span>
-            <span class="card-row-value" id="gateway-log-level">—</span>
-          </div>
+    <!-- Gateway Info -->
+    <div class="section">
+      <div class="section-title">Gateway</div>
+      <div class="card">
+        <div class="card-row">
+          <span class="card-row-label">Admin Key</span>
+          <span class="card-row-value" id="admin-key-masked">&mdash;</span>
+        </div>
+        <div class="card-row">
+          <span class="card-row-label">Port</span>
+          <span class="card-row-value" id="gateway-port">&mdash;</span>
+        </div>
+        <div class="card-row">
+          <span class="card-row-label">Log Level</span>
+          <span class="card-row-value" id="gateway-log-level">&mdash;</span>
         </div>
       </div>
+    </div>
 
-      <!-- Providers -->
-      <div class="section">
-        <div class="section-title">Providers</div>
-        <div class="provider-grid" id="providers-grid">
-          <div class="loading"><div class="spinner"></div> Loading providers...</div>
-        </div>
+    <!-- Providers -->
+    <div class="section">
+      <div class="section-title">Providers</div>
+      <div class="provider-grid" id="providers-grid">
+        <div class="loading"><div class="spinner"></div> Loading providers...</div>
       </div>
+    </div>
 
-      <!-- API Keys -->
-      <div class="section">
-        <div class="section-title">API Keys</div>
-        <div class="card">
-          <div id="key-reveal" class="key-reveal">
-            <p>Save this key now — it won't be shown again.</p>
-            <code id="new-key-value" title="Click to copy"></code>
-          </div>
-          <table class="keys-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Prefix</th>
-                <th>Last Used</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="keys-body">
-              <tr><td colspan="5" class="keys-empty">Loading...</td></tr>
-            </tbody>
-          </table>
-          <div class="create-key-form">
-            <input type="text" id="new-key-name" placeholder="Key name (e.g. cursor-laptop)">
-            <button class="btn btn-primary btn-sm" onclick="createKey()">Create Key</button>
-          </div>
+    <!-- API Keys -->
+    <div class="section">
+      <div class="section-title">API Keys</div>
+      <div class="card">
+        <div id="key-reveal" class="key-reveal">
+          <p>Save this key now &mdash; it won't be shown again.</p>
+          <code id="new-key-value" title="Click to copy"></code>
+        </div>
+        <table class="keys-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Prefix</th>
+              <th>Last Used</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="keys-body">
+            <tr><td colspan="5" class="keys-empty">Loading...</td></tr>
+          </tbody>
+        </table>
+        <div class="create-key-form">
+          <input type="text" id="new-key-name" placeholder="Key name (e.g. cursor-laptop)">
+          <button class="btn btn-primary btn-sm" onclick="createKey()">Create Key</button>
         </div>
       </div>
     </div>
@@ -546,69 +581,22 @@ const dashboardHtml = `<!DOCTYPE html>
   <div id="toast" class="toast"></div>
 
   <script>
-    let apiKey = localStorage.getItem('llm-gateway-admin-key') || '';
-
-    // Auto-login if key is stored
-    if (apiKey) {
-      login(true);
-    }
+    // No login needed — Cloudflare SSO handles browser auth.
+    // Dashboard API endpoints at /api/dashboard/* don't require Bearer tokens.
 
     async function apiFetch(path, options = {}) {
-      const res = await fetch(path, {
+      const res = await fetch('/api/dashboard' + path, {
         ...options,
         headers: {
-          'Authorization': 'Bearer ' + apiKey,
           'Content-Type': 'application/json',
           ...options.headers,
         },
       });
-      if (res.status === 401 || res.status === 403) {
-        logout();
-        throw new Error('Unauthorized');
-      }
       return res;
     }
 
-    async function login(auto = false) {
-      if (!auto) {
-        apiKey = document.getElementById('admin-key').value.trim();
-        if (!apiKey) return;
-      }
-
-      try {
-        const res = await fetch('/v1/settings', {
-          headers: { 'Authorization': 'Bearer ' + apiKey },
-        });
-
-        if (!res.ok) {
-          if (!auto) {
-            document.getElementById('login-error').textContent = 'Invalid admin key.';
-            document.getElementById('login-error').style.display = 'block';
-          }
-          apiKey = '';
-          return;
-        }
-
-        localStorage.setItem('llm-gateway-admin-key', apiKey);
-        document.getElementById('login').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        await refresh();
-      } catch (e) {
-        if (!auto) {
-          document.getElementById('login-error').textContent = 'Connection failed.';
-          document.getElementById('login-error').style.display = 'block';
-        }
-      }
-    }
-
-    function logout() {
-      apiKey = '';
-      localStorage.removeItem('llm-gateway-admin-key');
-      document.getElementById('dashboard').style.display = 'none';
-      document.getElementById('login').style.display = 'flex';
-      document.getElementById('admin-key').value = '';
-      document.getElementById('login-error').style.display = 'none';
-    }
+    // Load everything on page load
+    refresh();
 
     async function refresh() {
       await Promise.all([loadSettings(), loadKeys()]);
@@ -616,14 +604,17 @@ const dashboardHtml = `<!DOCTYPE html>
 
     async function loadSettings() {
       try {
-        const res = await apiFetch('/v1/settings');
+        const res = await apiFetch('/settings');
         const data = await res.json();
 
         // Gateway info
         document.getElementById('version').textContent = 'v' + data.gateway.version;
-        document.getElementById('admin-key-masked').textContent = data.gateway.adminKey || '—';
+        document.getElementById('admin-key-masked').textContent = data.gateway.adminKey || '\\u2014';
         document.getElementById('gateway-port').textContent = data.gateway.port;
         document.getElementById('gateway-log-level').textContent = data.gateway.logLevel;
+
+        // Kill switch state
+        updateKillSwitchUI(data.gateway.apiEnabled);
 
         // Providers
         const grid = document.getElementById('providers-grid');
@@ -658,9 +649,51 @@ const dashboardHtml = `<!DOCTYPE html>
       }
     }
 
+    function updateKillSwitchUI(enabled) {
+      const card = document.getElementById('kill-switch-card');
+      const toggle = document.getElementById('kill-switch');
+      const title = document.getElementById('kill-switch-title');
+      const desc = document.getElementById('kill-switch-desc');
+
+      toggle.checked = enabled;
+
+      if (enabled) {
+        card.classList.remove('disabled');
+        title.textContent = 'API is enabled';
+        desc.textContent = 'All /v1/* endpoints are accepting requests with valid API keys.';
+      } else {
+        card.classList.add('disabled');
+        title.textContent = 'API is disabled';
+        desc.textContent = 'All /v1/* endpoints are returning 503. No API requests will be processed.';
+      }
+    }
+
+    async function toggleKillSwitch(enabled) {
+      try {
+        const res = await apiFetch('/kill-switch', {
+          method: 'POST',
+          body: JSON.stringify({ enabled }),
+        });
+
+        if (!res.ok) {
+          showToast('Failed to toggle API access', true);
+          // Revert the toggle
+          document.getElementById('kill-switch').checked = !enabled;
+          return;
+        }
+
+        const data = await res.json();
+        updateKillSwitchUI(data.apiEnabled);
+        showToast(enabled ? 'API access enabled' : 'API access disabled');
+      } catch (e) {
+        showToast('Failed to toggle API access', true);
+        document.getElementById('kill-switch').checked = !enabled;
+      }
+    }
+
     async function loadKeys() {
       try {
-        const res = await apiFetch('/v1/admin/keys');
+        const res = await apiFetch('/keys');
         const data = await res.json();
 
         const tbody = document.getElementById('keys-body');
@@ -703,7 +736,7 @@ const dashboardHtml = `<!DOCTYPE html>
       }
 
       try {
-        const res = await apiFetch('/v1/admin/keys', {
+        const res = await apiFetch('/keys', {
           method: 'POST',
           body: JSON.stringify({ name }),
         });
@@ -732,7 +765,7 @@ const dashboardHtml = `<!DOCTYPE html>
       if (!confirm('Revoke this API key? This cannot be undone.')) return;
 
       try {
-        const res = await apiFetch('/v1/admin/keys/' + id, { method: 'DELETE' });
+        const res = await apiFetch('/keys/' + id, { method: 'DELETE' });
         if (!res.ok) {
           showToast('Failed to revoke key', true);
           return;
@@ -750,11 +783,6 @@ const dashboardHtml = `<!DOCTYPE html>
         navigator.clipboard.writeText(e.target.textContent);
         showToast('Copied to clipboard');
       }
-    });
-
-    // Enter key to login
-    document.getElementById('admin-key').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') login();
     });
 
     // Enter key to create
