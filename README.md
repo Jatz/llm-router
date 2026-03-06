@@ -114,6 +114,46 @@ curl -X DELETE http://localhost:3000/v1/admin/keys/1 \
   -H "Authorization: Bearer YOUR_ADMIN_KEY"
 ```
 
+## Kill Switch
+
+The gateway has a kill switch that instantly disables all `/v1/*` API endpoints. When disabled, all programmatic requests return `503 Service Unavailable`.
+
+**Via the dashboard UI:** Toggle the switch at the top of the settings page.
+
+**Via the dashboard API:**
+```bash
+# Disable all API access
+curl -X POST http://localhost:3000/api/dashboard/kill-switch \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+# Re-enable
+curl -X POST http://localhost:3000/api/dashboard/kill-switch \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+```
+
+The kill switch state is stored in SQLite and persists across container restarts.
+
+## Cloudflare Access Setup
+
+The gateway has two access patterns:
+
+1. **Browser (dashboard)** — Protected by Cloudflare SSO. No login screen needed in the app.
+2. **Programmatic (`/v1/*`)** — Protected by API key in `Authorization: Bearer` header.
+
+To allow programmatic access from external clients (Cursor, scripts, agents), create a **bypass policy** in Cloudflare Access for the `/v1/*` paths:
+
+1. Go to **Cloudflare Zero Trust → Access → Applications**
+2. Find your `llm.jaymathew.com` application
+3. Add a new **Access Policy** with:
+   - **Policy name:** `API bypass`
+   - **Action:** Bypass
+   - **Selector:** Path starts with `/v1/`
+4. Save
+
+This lets programmatic clients reach the API endpoints directly — the gateway's own API key auth secures them. Browser routes (`/settings`, `/docs`, `/api/dashboard/*`) remain behind Cloudflare SSO.
+
 ## Docker
 
 ```bash
